@@ -8,7 +8,7 @@ function App() {
 
   // 1. Ambil daftar produk dari backend
   useEffect(() => {
-    fetch('https://website-saya-backend.vercel.app/')
+    fetch('https://website-saya-backend.vercel.app/api/products')
       .then((res) => res.json())
       .then((data) => setProducts(data))
       .catch((err) => console.error('Gagal mengambil data produk:', err));
