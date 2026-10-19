@@ -1,89 +1,69 @@
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
-require('dotenv').config(); // Ini akan membaca file .env kamu
+const cors = require('cors');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Mengambil URI dari file .env
-const MONGO_URI = process.env.MONGO_URI;
+// 1. KONEKSI MONGO DB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB Terhubung!'))
+  .catch((err) => console.error('Error MongoDB:', err));
 
-// Koneksi ke MongoDB Atlas Cloud
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('Berhasil terhubung ke MongoDB Atlas Cloud!'))
-  .catch((err) => console.error('Gagal terhubung ke MongoDB Atlas:', err));
-
-// Skema & Model Produk
+// 2. SCHEMA & MODEL PRODUK
 const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  category: { type: String, required: true },
-  price: { type: Number, required: true },
-  rating: { type: Number, default: 4.5 }
+  name: String,
+  price: Number,
+  image: String,
+  description: String
 });
 
 const Product = mongoose.model('Product', productSchema);
 
-// Skema & Model Pesanan
-const orderSchema = new mongoose.Schema({
-  items: Array,
-  totalPrice: Number,
-  createdAt: { type: Date, default: Date.now }
-});
+// 3. SEEDING DATA OTOMATIS (Mengisi produk jika DB kosong)
+const seedProducts = async () => {
+  const count = await Product.countDocuments();
+  if (count === 0) {
+    await Product.insertMany([
+      {
+        name: 'Laptop Gaming RTX 4060',
+        price: 15000000,
+        image: 'https://via.placeholder.com/200',
+        description: 'Laptop performa tinggi untuk gaming dan editing.'
+      },
+      {
+        name: 'Mouse Wireless Gaming',
+        price: 350000,
+        image: 'https://via.placeholder.com/200',
+        description: 'Mouse responsif dengan sensor presisi tinggi.'
+      },
+      {
+        name: 'Keyboard Mechanical RGB',
+        price: 750000,
+        image: 'https://via.placeholder.com/200',
+        description: 'Keyboard switch biru dengan lampu RGB kustom.'
+      }
+    ]);
+    console.log('Data produk berhasil ditambahkan!');
+  }
+};
+seedProducts();
 
-const Order = mongoose.model('Order', orderSchema);
-
-// API Endpoints
-
-// GET: Ambil Produk dari MongoDB
+// 4. API ENDPOINT
 app.get('/api/products', async (req, res) => {
   try {
-    let products = await Product.find();
-
-    // Jika database cloud masih kosong, isi otomatis dengan data awal
-    if (products.length === 0) {
-      const initialProducts = [
-        { name: 'Sepatu Sneakers Sport', category: 'Fashion', price: 250000, rating: 4.8 },
-        { name: 'Kaos Polos Cotton 30s', category: 'Fashion', price: 75000, rating: 4.5 },
-        { name: 'Jaket Denim Casual', category: 'Fashion', price: 350000, rating: 4.7 },
-        { name: 'Headphone Wireless Bluetooth', category: 'Elektronik', price: 450000, rating: 4.9 },
-        { name: 'Smartwatch Sport Fit', category: 'Elektronik', price: 620000, rating: 4.6 },
-        { name: 'Mouse Gaming RGB', category: 'Elektronik', price: 180000, rating: 4.7 },
-        { name: 'Keyboard Mechanical Tactile', category: 'Elektronik', price: 550000, rating: 4.8 },
-        { name: 'Tas Ransel Laptop Waterproof', category: 'Aksesoris', price: 220000, rating: 4.6 }
-      ];
-      products = await Product.insertMany(initialProducts);
-      console.log('Data produk awal berhasil dibuat di MongoDB Atlas!');
-    }
-
+    const products = await Product.find();
     res.json(products);
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Gagal mengambil data produk' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-// POST: Simpan Pesanan ke MongoDB
-app.post('/api/checkout', async (req, res) => {
-  try {
-    const { cart, total } = req.body;
-    if (!cart || cart.length === 0) {
-      return res.status(400).json({ success: false, message: 'Keranjang belanja kosong!' });
-    }
-
-    const newOrder = new Order({ items: cart, totalPrice: total });
-    await newOrder.save();
-
-    res.json({
-      success: true,
-      message: `Transaksi berhasil disimpan ke MongoDB Atlas! Total: Rp ${total.toLocaleString('id-ID')}`
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Gagal menyimpan transaksi' });
-  }
+// ROUTE TEST
+app.get('/', (req, res) => {
+  res.send('API Backend Aktif!');
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server Backend berjalan di http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server berjalan di port ${PORT}`));
